@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tools</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 3rem 1.5rem;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+
+    h1 { font-size: 2.25rem; margin-bottom: 0.25rem; }
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .grid { display: grid; gap: 1rem; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color 0.2s, transform 0.15s;
+      display: block;
+    }
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .card-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .card-desc { color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+
+    .footer {
+      margin-top: 3rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-align: center;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛠 Tools</h1>
+    <p class="subtitle">A collection of browser-based utilities. Everything runs client-side — no data leaves your machine.</p>
+
+    <div class="grid">
+      <a href="ocr/" class="card">
+        <div class="card-icon">🔍</div>
+        <div class="card-title">Browser OCR</div>
+        <div class="card-desc">Extract text from images and PDFs directly in your browser using Tesseract.js and PDF.js. Supports 30+ languages.</div>
+      </a>
+
+      <a href="timestamp-converter/" class="card">
+        <div class="card-icon">⏱</div>
+        <div class="card-title">Timestamp Converter</div>
+        <div class="card-desc">Convert between Unix timestamps and human-readable dates. Shows UTC, local time, ISO 8601, and relative time.</div>
+      </a>
+
+      <a href="json-to-yaml/" class="card">
+        <div class="card-icon">🔄</div>
+        <div class="card-title">JSON ↔ YAML</div>
+        <div class="card-desc">Convert between JSON and YAML formats with live preview. Supports bidirectional conversion and configurable indentation.</div>
+      </a>
+
+      <a href="encrypt-decrypt/" class="card">
+        <div class="card-icon">🔐</div>
+        <div class="card-title">Encrypt / Decrypt</div>
+        <div class="card-desc">Encrypt messages with a passphrase and share them via URL. Uses AES-256-GCM with PBKDF2 key derivation — fully client-side.</div>
+      </a>
+
+      <a href="render-markdown/" class="card">
+        <div class="card-icon">📝</div>
+        <div class="card-title">Markdown Renderer</div>
+        <div class="card-desc">Write Markdown and see it rendered live with GitHub styling. Copy the HTML output with one click.</div>
+      </a>
+    </div>
+
+    <div class="footer">
+      <p>Inspired by <a href="https://tools.simonwillison.net/" target="_blank">tools.simonwillison.net</a></p>
+    </div>
+  </div>
+</body>
+</html>

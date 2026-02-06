@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON ↔ YAML Converter</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    .panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .panel-header h2 { font-size: 1rem; }
+
+    textarea {
+      width: 100%;
+      flex: 1;
+      min-height: 320px;
+      resize: vertical;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.8rem;
+      margin-top: 0.4rem;
+      min-height: 1.2em;
+    }
+
+    button {
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--border); }
+    button.primary { background: var(--accent); border-color: var(--accent); }
+    button.primary:hover { background: var(--accent-hover); }
+    button.copied { background: var(--success); border-color: var(--success); color: #fff; }
+
+    .options {
+      display: flex; gap: 0.75rem; flex-wrap: wrap;
+      margin-bottom: 1rem; align-items: center;
+    }
+
+    .options label {
+      font-size: 0.8rem; color: var(--muted);
+      display: flex; align-items: center; gap: 0.35rem;
+    }
+
+    select {
+      padding: 0.35rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.8rem;
+    }
+
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .panels { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>🔄 JSON ↔ YAML</h1>
+    <p class="subtitle">Paste JSON to get YAML (or vice versa). Conversion happens live as you type.</p>
+
+    <div class="options">
+      <label>Direction:
+        <select id="direction">
+          <option value="json2yaml">JSON → YAML</option>
+          <option value="yaml2json">YAML → JSON</option>
+        </select>
+      </label>
+      <label>Indent:
+        <select id="indent">
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 id="inputLabel">JSON Input</h2>
+          <button id="clearBtn">Clear</button>
+        </div>
+        <textarea id="input" spellcheck="false" placeholder="Paste your JSON here…"></textarea>
+        <div class="error-msg" id="error"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 id="outputLabel">YAML Output</h2>
+          <button id="copyBtn">Copy</button>
+        </div>
+        <textarea id="output" readonly spellcheck="false"></textarea>
+      </div>
+    </div>
+  </div>
+
+<script>
+const inputEl = document.getElementById('input');
+const outputEl = document.getElementById('output');
+const errorEl = document.getElementById('error');
+const directionEl = document.getElementById('direction');
+const indentEl = document.getElementById('indent');
+const copyBtn = document.getElementById('copyBtn');
+const clearBtn = document.getElementById('clearBtn');
+const inputLabel = document.getElementById('inputLabel');
+const outputLabel = document.getElementById('outputLabel');
+
+function convert() {
+  const raw = inputEl.value.trim();
+  errorEl.textContent = '';
+  if (!raw) { outputEl.value = ''; return; }
+
+  const indent = Number(indentEl.value);
+
+  try {
+    if (directionEl.value === 'json2yaml') {
+      const obj = JSON.parse(raw);
+      outputEl.value = jsyaml.dump(obj, { indent, noArrayIndent: false, lineWidth: -1 });
+    } else {
+      const obj = jsyaml.load(raw);
+      outputEl.value = JSON.stringify(obj, null, indent);
+    }
+  } catch (err) {
+    errorEl.textContent = err.message;
+    outputEl.value = '';
+  }
+}
+
+function updateLabels() {
+  if (directionEl.value === 'json2yaml') {
+    inputLabel.textContent = 'JSON Input';
+    outputLabel.textContent = 'YAML Output';
+    inputEl.placeholder = 'Paste your JSON here…';
+  } else {
+    inputLabel.textContent = 'YAML Input';
+    outputLabel.textContent = 'JSON Output';
+    inputEl.placeholder = 'Paste your YAML here…';
+  }
+}
+
+inputEl.addEventListener('input', convert);
+indentEl.addEventListener('change', convert);
+directionEl.addEventListener('change', () => { updateLabels(); convert(); });
+clearBtn.addEventListener('click', () => { inputEl.value = ''; outputEl.value = ''; errorEl.textContent = ''; });
+
+copyBtn.addEventListener('click', async () => {
+  if (!outputEl.value) return;
+  await navigator.clipboard.writeText(outputEl.value);
+  copyBtn.textContent = 'Copied!';
+  copyBtn.classList.add('copied');
+  setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1500);
+});
+
+// Example on load
+inputEl.value = `{
+  "name": "tools",
+  "version": "1.0.0",
+  "features": ["ocr", "timestamp", "encrypt"],
+  "config": {
+    "theme": "dark",
+    "language": "en"
+  }
+}`;
+convert();
+</script>
+</body>
+</html>

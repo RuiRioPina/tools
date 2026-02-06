@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timestamp Converter</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 560px; margin: 0 auto; }
+
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    input[type="text"], input[type="datetime-local"] {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+
+    .display {
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    .section { margin-bottom: 1.25rem; }
+    .section:last-child { margin-bottom: 0; }
+
+    .now-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    .now-btn:hover { background: var(--accent-hover); }
+
+    .live-clock {
+      text-align: center;
+      font-family: monospace;
+      font-size: 1.1rem;
+      color: var(--accent);
+      padding: 0.75rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+    }
+
+    .direction-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    @media (max-width: 480px) {
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>⏱ Timestamp Converter</h1>
+    <p class="subtitle">Convert between Unix timestamps and human-readable dates. Supports seconds &amp; milliseconds.</p>
+
+    <div class="live-clock" id="liveClock"></div>
+
+    <div class="card">
+      <div class="direction-label">Unix → Human</div>
+      <div class="section">
+        <label for="tsInput">Unix Timestamp
+          <button class="now-btn" id="nowBtn">Now</button>
+        </label>
+        <input type="text" id="tsInput" placeholder="e.g. 1700000000" autocomplete="off">
+      </div>
+
+      <div class="row">
+        <div class="section">
+          <label>UTC</label>
+          <div class="display" id="utcOut">—</div>
+        </div>
+        <div class="section">
+          <label>Local Time</label>
+          <div class="display" id="localOut">—</div>
+        </div>
+      </div>
+      <div class="section" style="margin-top:1rem">
+        <label>ISO 8601</label>
+        <div class="display" id="isoOut">—</div>
+      </div>
+      <div class="section" style="margin-top:1rem">
+        <label>Relative</label>
+        <div class="display" id="relOut">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="direction-label">Human → Unix</div>
+      <div class="section">
+        <label for="dtInput">Pick a date &amp; time</label>
+        <input type="datetime-local" id="dtInput" step="1">
+      </div>
+      <div class="row">
+        <div class="section">
+          <label>Seconds</label>
+          <div class="display" id="secOut">—</div>
+        </div>
+        <div class="section">
+          <label>Milliseconds</label>
+          <div class="display" id="msOut">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const tsInput = document.getElementById('tsInput');
+const utcOut = document.getElementById('utcOut');
+const localOut = document.getElementById('localOut');
+const isoOut = document.getElementById('isoOut');
+const relOut = document.getElementById('relOut');
+const dtInput = document.getElementById('dtInput');
+const secOut = document.getElementById('secOut');
+const msOut = document.getElementById('msOut');
+const liveClock = document.getElementById('liveClock');
+const nowBtn = document.getElementById('nowBtn');
+
+function fmt(date, tz) {
+  return date.toLocaleString('en-GB', {
+    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: tz, timeZoneName: 'short'
+  });
+}
+
+function relative(date) {
+  const diff = date - Date.now();
+  const abs = Math.abs(diff);
+  const units = [
+    [1000*60*60*24*365, 'year'], [1000*60*60*24*30, 'month'],
+    [1000*60*60*24*7, 'week'], [1000*60*60*24, 'day'],
+    [1000*60*60, 'hour'], [1000*60, 'minute'], [1000, 'second']
+  ];
+  for (const [ms, name] of units) {
+    const val = Math.floor(abs / ms);
+    if (val >= 1) {
+      const label = val === 1 ? name : name + 's';
+      return diff > 0 ? `in ${val} ${label}` : `${val} ${label} ago`;
+    }
+  }
+  return 'just now';
+}
+
+function updateFromTimestamp() {
+  const raw = tsInput.value.trim();
+  if (!raw) { utcOut.textContent = localOut.textContent = isoOut.textContent = relOut.textContent = '—'; return; }
+  const num = Number(raw);
+  if (isNaN(num)) { utcOut.textContent = 'Invalid'; localOut.textContent = ''; isoOut.textContent = ''; relOut.textContent = ''; return; }
+  const ms = raw.length <= 10 ? num * 1000 : num;
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) { utcOut.textContent = 'Invalid date'; return; }
+  utcOut.textContent = fmt(d, 'UTC');
+  localOut.textContent = fmt(d, Intl.DateTimeFormat().resolvedOptions().timeZone);
+  isoOut.textContent = d.toISOString();
+  relOut.textContent = relative(d);
+}
+
+function updateFromDatetime() {
+  const val = dtInput.value;
+  if (!val) { secOut.textContent = msOut.textContent = '—'; return; }
+  const d = new Date(val);
+  secOut.textContent = Math.floor(d.getTime() / 1000);
+  msOut.textContent = d.getTime();
+}
+
+tsInput.addEventListener('input', updateFromTimestamp);
+dtInput.addEventListener('input', updateFromDatetime);
+nowBtn.addEventListener('click', () => {
+  tsInput.value = Math.floor(Date.now() / 1000);
+  updateFromTimestamp();
+});
+
+// Live clock
+setInterval(() => {
+  const now = new Date();
+  liveClock.textContent = `${Math.floor(now.getTime()/1000)}  ·  ${now.toISOString()}`;
+  if (tsInput.value.trim()) updateFromTimestamp(); // keep relative time fresh
+}, 1000);
+
+// Initialize with current timestamp
+tsInput.value = Math.floor(Date.now() / 1000);
+updateFromTimestamp();
+</script>
+</body>
+</html>

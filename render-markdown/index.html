@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Renderer</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-dark.min.css">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 1000px; margin: 0 auto; }
+
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+    .editor {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      min-height: 500px;
+    }
+
+    .pane {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pane-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .pane-header h2 { font-size: 0.95rem; color: var(--muted); }
+
+    textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 400px;
+      resize: none;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      outline: none;
+      tab-size: 2;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    .preview {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .markdown-body {
+      background: transparent !important;
+      font-size: 0.9rem;
+    }
+
+    button {
+      padding: 0.35rem 0.8rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--border); }
+    button.copied { background: var(--success); border-color: var(--success); color: #fff; }
+
+    .html-output {
+      margin-top: 1rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .html-output .pane-header { margin-bottom: 0.5rem; }
+    .html-output textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    .stats { font-size: 0.75rem; color: var(--muted); }
+
+    @media (max-width: 700px) {
+      .editor { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>📝 Markdown Renderer</h1>
+    <p class="subtitle">Write Markdown on the left, see it rendered live on the right. Uses <a href="https://github.com/markedjs/marked" style="color:var(--accent)">marked.js</a> for client-side rendering — no API calls needed.</p>
+
+    <div class="editor">
+      <div class="pane">
+        <div class="pane-header">
+          <h2>Markdown</h2>
+          <span class="stats" id="stats"></span>
+        </div>
+        <textarea id="input" spellcheck="false" placeholder="Type your Markdown here…"></textarea>
+      </div>
+
+      <div class="pane">
+        <div class="pane-header">
+          <h2>Preview</h2>
+        </div>
+        <div class="preview markdown-body" id="preview"></div>
+      </div>
+    </div>
+
+    <div class="html-output">
+      <div class="pane-header">
+        <h2 style="font-size:0.95rem; color:var(--muted);">HTML Output</h2>
+        <button id="copyHtml">Copy HTML</button>
+      </div>
+      <textarea id="htmlOutput" readonly spellcheck="false"></textarea>
+    </div>
+  </div>
+
+<script>
+const input = document.getElementById('input');
+const preview = document.getElementById('preview');
+const htmlOutput = document.getElementById('htmlOutput');
+const copyHtmlBtn = document.getElementById('copyHtml');
+const stats = document.getElementById('stats');
+
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: true
+});
+
+function render() {
+  const md = input.value;
+  const html = marked.parse(md);
+  preview.innerHTML = html;
+  htmlOutput.value = html;
+
+  const words = md.trim() ? md.trim().split(/\s+/).length : 0;
+  const chars = md.length;
+  stats.textContent = `${words} words · ${chars} chars`;
+}
+
+input.addEventListener('input', render);
+
+// Tab key support in textarea
+input.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.value = input.value.substring(0, start) + '  ' + input.value.substring(end);
+    input.selectionStart = input.selectionEnd = start + 2;
+    render();
+  }
+});
+
+copyHtmlBtn.addEventListener('click', async () => {
+  if (!htmlOutput.value) return;
+  await navigator.clipboard.writeText(htmlOutput.value);
+  copyHtmlBtn.textContent = 'Copied!';
+  copyHtmlBtn.classList.add('copied');
+  setTimeout(() => { copyHtmlBtn.textContent = 'Copy HTML'; copyHtmlBtn.classList.remove('copied'); }, 1500);
+});
+
+// Load saved content or example
+const saved = localStorage.getItem('md-renderer-content');
+if (saved) {
+  input.value = saved;
+} else {
+  input.value = `# Hello World
+
+This is a **Markdown renderer** that works entirely in your browser.
+
+## Features
+
+- ✅ Live preview as you type
+- ✅ GitHub Flavored Markdown
+- ✅ Code blocks with syntax highlighting
+- ✅ Tables, lists, blockquotes
+- ✅ Copy HTML output
+
+## Code Example
+
+\`\`\`javascript
+function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+\`\`\`
+
+## Table
+
+| Tool | Description |
+|------|-------------|
+| OCR | Extract text from images |
+| Timestamp | Convert Unix timestamps |
+| JSON/YAML | Convert between formats |
+
+> "The best tool is the one you actually use." — Someone wise
+
+---
+
+Made with ❤️`;
+}
+
+render();
+
+input.addEventListener('input', () => {
+  localStorage.setItem('md-renderer-content', input.value);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browser OCR — Extract Text from Images & PDFs</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script type="module">
+    import pdfjsDist from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/+esm';
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/build/pdf.worker.min.mjs';
+  </script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .subtitle a { color: var(--accent); }
+
+    .controls {
+      display: flex; gap: 0.75rem; align-items: center;
+      margin-bottom: 1rem; flex-wrap: wrap;
+    }
+
+    select, button {
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+
+    button { background: var(--accent); border: none; font-weight: 600; }
+    button:hover { background: var(--accent-hover); }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 3rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 1.5rem;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+    .dropzone.drag-over { border-color: var(--accent); background: rgba(99,102,241,0.08); }
+    .dropzone.processing { cursor: wait; opacity: 0.7; }
+
+    .progress-bar {
+      height: 4px; background: var(--border); border-radius: 2px;
+      margin-bottom: 1.5rem; overflow: hidden; display: none;
+    }
+    .progress-bar .fill {
+      height: 100%; background: var(--accent); width: 0%;
+      transition: width 0.3s;
+    }
+
+    .result-block {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .result-block img { max-width: 100%; border-radius: 6px; margin-bottom: 0.75rem; }
+    .result-block textarea {
+      width: 100%; min-height: 100px; resize: vertical;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem; font-family: monospace; font-size: 0.875rem;
+    }
+
+    .full-doc { display: none; }
+    .full-doc textarea {
+      width: 100%; min-height: 150px; resize: vertical;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem; font-family: monospace; font-size: 0.875rem;
+    }
+    .full-doc h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    input[type="file"] { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>🔍 Browser OCR</h1>
+    <p class="subtitle">Extract text from images &amp; PDFs entirely in your browser using
+      <a href="https://tesseract.projectnaptha.com/" target="_blank">Tesseract.js</a> &amp;
+      <a href="https://mozilla.github.io/pdf.js/" target="_blank">PDF.js</a>. Nothing is uploaded.</p>
+
+    <div class="controls">
+      <label for="lang">Language:</label>
+      <select id="lang"></select>
+    </div>
+
+    <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp">
+    <div class="dropzone" id="dropzone">Drop an image or PDF here, or click to browse</div>
+
+    <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
+
+    <div class="full-doc" id="fullDoc">
+      <h2>Full Document Text</h2>
+      <textarea id="fullText" readonly></textarea>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+<script>
+const LANG_NAMES = {
+  eng:'English', fra:'French', deu:'German', spa:'Spanish', por:'Portuguese',
+  ita:'Italian', nld:'Dutch', pol:'Polish', rus:'Russian', jpn:'Japanese',
+  chi_sim:'Chinese (Simplified)', chi_tra:'Chinese (Traditional)', kor:'Korean',
+  ara:'Arabic', hin:'Hindi', tur:'Turkish', vie:'Vietnamese', ukr:'Ukrainian',
+  ces:'Czech', swe:'Swedish', dan:'Danish', fin:'Finnish', nor:'Norwegian',
+  hun:'Hungarian', ron:'Romanian', bul:'Bulgarian', hrv:'Croatian', slk:'Slovak',
+  slv:'Slovenian', ell:'Greek', heb:'Hebrew', tha:'Thai', ind:'Indonesian',
+  msa:'Malay', cat:'Catalan', eus:'Basque', glg:'Galician', lat:'Latin'
+};
+
+const langSelect = document.getElementById('lang');
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const resultsDiv = document.getElementById('results');
+const fullDocDiv = document.getElementById('fullDoc');
+const fullTextArea = document.getElementById('fullText');
+const progressBar = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
+
+// Populate language dropdown
+for (const [code, name] of Object.entries(LANG_NAMES)) {
+  const opt = document.createElement('option');
+  opt.value = code; opt.textContent = name;
+  if (code === 'eng') opt.selected = true;
+  langSelect.appendChild(opt);
+}
+
+// Drag & drop
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+});
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files.length) processFile(fileInput.files[0]); });
+
+// Paste support
+document.addEventListener('paste', e => {
+  const img = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
+  if (img) processFile(img.getAsFile());
+});
+
+async function processFile(file) {
+  resultsDiv.innerHTML = '';
+  fullDocDiv.style.display = 'none';
+  dropzone.classList.add('processing');
+  dropzone.textContent = 'Processing…';
+  progressBar.style.display = 'block';
+  progressFill.style.width = '0%';
+
+  const worker = await Tesseract.createWorker(langSelect.value);
+  const pages = [];
+
+  if (file.type === 'application/pdf') {
+    const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
+    const total = pdf.numPages;
+    for (let i = 1; i <= total; i++) {
+      dropzone.textContent = `Processing page ${i} of ${total}…`;
+      progressFill.style.width = `${(i / total) * 100}%`;
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: 1 });
+      const canvas = document.createElement('canvas');
+      canvas.width = 1000;
+      canvas.height = (1000 / vp.width) * vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: page.getViewport({ scale: 1000 / vp.width }) }).promise;
+      const url = canvas.toDataURL('image/jpeg', 0.85);
+      const text = await ocrImage(worker, url);
+      pages.push({ url, text });
+      addResult(url, text);
+    }
+  } else {
+    progressFill.style.width = '50%';
+    const url = URL.createObjectURL(file);
+    const text = await ocrImage(worker, url);
+    pages.push({ url, text });
+    addResult(url, text);
+    progressFill.style.width = '100%';
+  }
+
+  await worker.terminate();
+
+  if (pages.length > 1) {
+    fullTextArea.value = pages.map(p => p.text).join('\n\n');
+    fullDocDiv.style.display = 'block';
+  }
+
+  dropzone.textContent = 'Drop an image or PDF here, or click to browse';
+  dropzone.classList.remove('processing');
+  progressBar.style.display = 'none';
+}
+
+async function ocrImage(worker, url) {
+  const { data: { text } } = await worker.recognize(url);
+  return text.trim();
+}
+
+function addResult(imgUrl, text) {
+  const block = document.createElement('div');
+  block.className = 'result-block';
+  const img = document.createElement('img');
+  img.src = imgUrl;
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.height = Math.max(100, text.split('\n').length * 20) + 'px';
+  block.appendChild(img);
+  block.appendChild(ta);
+  resultsDiv.appendChild(block);
+}
+</script>
+</body>
+</html>
