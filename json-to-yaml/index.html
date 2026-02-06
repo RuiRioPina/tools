@@ -16,6 +16,7 @@
       --accent-hover: #818cf8;
       --danger: #ef4444;
       --success: #22c55e;
+      --warning: #f59e0b;
       --radius: 10px;
     }
 
@@ -29,12 +30,47 @@
       padding: 2rem 1rem;
     }
 
-    .container { max-width: 900px; margin: 0 auto; }
+    .container { max-width: 960px; margin: 0 auto; }
 
     h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1rem; font-size: 0.9rem; }
 
-    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .toolbar {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      margin-bottom: 1rem; align-items: center;
+    }
+
+    select, .toolbar button {
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    select:hover, .toolbar button:hover { border-color: var(--muted); background: var(--border); }
+
+    .toolbar .swap-btn {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-size: 0.85rem;
+      padding: 0.4rem 1rem;
+    }
+    .toolbar .swap-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    .toolbar .separator {
+      width: 1px; height: 1.5rem; background: var(--border); margin: 0 0.25rem;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
 
     .panel {
       background: var(--surface);
@@ -42,7 +78,9 @@
       padding: 1rem;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
+    .panel.drag-over { border: 2px dashed var(--accent); }
 
     .panel-header {
       display: flex;
@@ -51,12 +89,28 @@
       margin-bottom: 0.5rem;
     }
 
-    .panel-header h2 { font-size: 1rem; }
+    .panel-header h2 { font-size: 0.95rem; }
+
+    .panel-header .btn-group { display: flex; gap: 0.35rem; }
+
+    .panel-header button {
+      padding: 0.3rem 0.65rem;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .panel-header button:hover { background: var(--border); }
+    .panel-header button.copied { background: var(--success); border-color: var(--success); color: #fff; }
 
     textarea {
       width: 100%;
       flex: 1;
-      min-height: 320px;
+      min-height: 380px;
       resize: vertical;
       background: var(--bg);
       color: var(--text);
@@ -65,59 +119,78 @@
       padding: 0.75rem;
       font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
       font-size: 0.85rem;
-      line-height: 1.5;
+      line-height: 1.6;
       outline: none;
       transition: border-color 0.2s;
+      tab-size: 2;
     }
     textarea:focus { border-color: var(--accent); }
 
+    .panel-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.4rem;
+      min-height: 1.4em;
+    }
+
     .error-msg {
       color: var(--danger);
-      font-size: 0.8rem;
-      margin-top: 0.4rem;
-      min-height: 1.2em;
+      font-size: 0.78rem;
     }
 
-    button {
-      padding: 0.4rem 0.9rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+    .stats {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      background: var(--border);
+      color: var(--muted);
+      font-size: 0.65rem;
+      font-family: monospace;
+      vertical-align: middle;
+      margin: 0 0.1rem;
+    }
+
+    .shortcuts {
+      color: var(--muted);
+      font-size: 0.72rem;
+      margin-top: 1rem;
+      text-align: center;
+      line-height: 2;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
       background: var(--surface);
-      color: var(--text);
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background 0.2s;
-    }
-    button:hover { background: var(--border); }
-    button.primary { background: var(--accent); border-color: var(--accent); }
-    button.primary:hover { background: var(--accent-hover); }
-    button.copied { background: var(--success); border-color: var(--success); color: #fff; }
-
-    .options {
-      display: flex; gap: 0.75rem; flex-wrap: wrap;
-      margin-bottom: 1rem; align-items: center;
-    }
-
-    .options label {
-      font-size: 0.8rem; color: var(--muted);
-      display: flex; align-items: center; gap: 0.35rem;
-    }
-
-    select {
-      padding: 0.35rem 0.6rem;
-      border-radius: 6px;
       border: 1px solid var(--border);
-      background: var(--surface);
       color: var(--text);
-      font-size: 0.8rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.25s, opacity 0.25s;
+      z-index: 100;
+      pointer-events: none;
     }
+    .toast.show { transform: translateY(0); opacity: 1; }
 
     .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
     .back-link:hover { text-decoration: underline; }
 
     @media (max-width: 640px) {
       .panels { grid-template-columns: 1fr; }
+      .shortcuts { display: none; }
     }
   </style>
 </head>
@@ -125,42 +198,71 @@
   <div class="container">
     <a href="../" class="back-link">← All Tools</a>
     <h1>🔄 JSON ↔ YAML</h1>
-    <p class="subtitle">Paste JSON to get YAML (or vice versa). Conversion happens live as you type.</p>
+    <p class="subtitle">Live conversion as you type. Supports Tab key, auto-detection, drag &amp; drop files, and keyboard shortcuts.</p>
 
-    <div class="options">
-      <label>Direction:
-        <select id="direction">
-          <option value="json2yaml">JSON → YAML</option>
-          <option value="yaml2json">YAML → JSON</option>
-        </select>
-      </label>
-      <label>Indent:
-        <select id="indent">
-          <option value="2" selected>2 spaces</option>
-          <option value="4">4 spaces</option>
-        </select>
-      </label>
+    <div class="toolbar">
+      <select id="direction" title="Conversion direction">
+        <option value="json2yaml">JSON → YAML</option>
+        <option value="yaml2json">YAML → JSON</option>
+        <option value="auto">Auto-detect</option>
+      </select>
+
+      <button class="swap-btn" id="swapBtn" title="Swap input ↔ output (Ctrl+Shift+S)">⇄ Swap</button>
+
+      <div class="separator"></div>
+
+      <select id="indent" title="Indentation">
+        <option value="2" selected>2 spaces</option>
+        <option value="4">4 spaces</option>
+        <option value="tab">Tabs</option>
+      </select>
+
+      <button id="formatBtn" title="Format / prettify input (Ctrl+Shift+F)">✨ Format</button>
+      <button id="minifyBtn" title="Minify input">⊟ Minify</button>
     </div>
 
     <div class="panels">
-      <div class="panel">
+      <div class="panel" id="inputPanel">
         <div class="panel-header">
           <h2 id="inputLabel">JSON Input</h2>
-          <button id="clearBtn">Clear</button>
+          <div class="btn-group">
+            <button id="pasteBtn" title="Paste from clipboard">📋 Paste</button>
+            <button id="clearBtn" title="Clear input">✕ Clear</button>
+          </div>
         </div>
-        <textarea id="input" spellcheck="false" placeholder="Paste your JSON here…"></textarea>
-        <div class="error-msg" id="error"></div>
+        <textarea id="input" spellcheck="false" placeholder="Paste or type your JSON here…&#10;&#10;Tab key works for indentation&#10;Drop a .json or .yaml file here"></textarea>
+        <div class="panel-footer">
+          <div class="error-msg" id="error"></div>
+          <div class="stats" id="inputStats"></div>
+        </div>
       </div>
 
       <div class="panel">
         <div class="panel-header">
           <h2 id="outputLabel">YAML Output</h2>
-          <button id="copyBtn">Copy</button>
+          <div class="btn-group">
+            <button id="copyBtn" title="Copy output (Ctrl+Shift+C)">📋 Copy</button>
+            <button id="downloadBtn" title="Download output as file">⬇ Download</button>
+          </div>
         </div>
-        <textarea id="output" readonly spellcheck="false"></textarea>
+        <textarea id="output" readonly spellcheck="false" placeholder="Output will appear here…"></textarea>
+        <div class="panel-footer">
+          <div></div>
+          <div class="stats" id="outputStats"></div>
+        </div>
       </div>
     </div>
+
+    <div class="shortcuts">
+      <span class="kbd">Tab</span> indent
+      <span class="kbd">Shift+Tab</span> outdent
+      <span class="kbd">Ctrl+Shift+F</span> format
+      <span class="kbd">Ctrl+Shift+S</span> swap
+      <span class="kbd">Ctrl+Shift+C</span> copy output
+    </div>
   </div>
+
+  <div class="toast" id="toast"></div>
 
 <script>
 const inputEl = document.getElementById('input');
@@ -170,54 +272,294 @@ const directionEl = document.getElementById('direction');
 const indentEl = document.getElementById('indent');
 const copyBtn = document.getElementById('copyBtn');
 const clearBtn = document.getElementById('clearBtn');
+const pasteBtn = document.getElementById('pasteBtn');
+const swapBtn = document.getElementById('swapBtn');
+const formatBtn = document.getElementById('formatBtn');
+const minifyBtn = document.getElementById('minifyBtn');
+const downloadBtn = document.getElementById('downloadBtn');
 const inputLabel = document.getElementById('inputLabel');
 const outputLabel = document.getElementById('outputLabel');
+const inputStats = document.getElementById('inputStats');
+const outputStats = document.getElementById('outputStats');
+const inputPanel = document.getElementById('inputPanel');
+const toastEl = document.getElementById('toast');
 
+// Toast notification
+function toast(msg, duration = 1800) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(() => toastEl.classList.remove('show'), duration);
+}
+
+// Stats
+function updateStats(el, text) {
+  if (!text.trim()) { el.textContent = ''; return; }
+  const lines = text.split('\n').length;
+  const chars = text.length;
+  const bytes = new Blob([text]).size;
+  const kb = (bytes / 1024).toFixed(1);
+  el.textContent = `${lines} lines · ${chars} chars · ${kb} KB`;
+}
+
+// Get indent string
+function getIndent() {
+  const v = indentEl.value;
+  return v === 'tab' ? '\t' : Number(v);
+}
+
+// Auto-detect format
+function detectFormat(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed[0] === '{' || trimmed[0] === '[') return 'json';
+  try { JSON.parse(trimmed); return 'json'; } catch {}
+  return 'yaml';
+}
+
+// Convert
 function convert() {
-  const raw = inputEl.value.trim();
+  const raw = inputEl.value;
   errorEl.textContent = '';
-  if (!raw) { outputEl.value = ''; return; }
+  updateStats(inputStats, raw);
 
-  const indent = Number(indentEl.value);
+  if (!raw.trim()) {
+    outputEl.value = '';
+    updateStats(outputStats, '');
+    return;
+  }
+
+  const indent = getIndent();
+  let dir = directionEl.value;
+
+  if (dir === 'auto') {
+    const detected = detectFormat(raw);
+    if (detected === 'json') {
+      dir = 'json2yaml';
+      inputLabel.textContent = 'JSON (auto-detected)';
+      outputLabel.textContent = 'YAML Output';
+    } else {
+      dir = 'yaml2json';
+      inputLabel.textContent = 'YAML (auto-detected)';
+      outputLabel.textContent = 'JSON Output';
+    }
+  }
 
   try {
-    if (directionEl.value === 'json2yaml') {
+    if (dir === 'json2yaml') {
       const obj = JSON.parse(raw);
-      outputEl.value = jsyaml.dump(obj, { indent, noArrayIndent: false, lineWidth: -1 });
+      const yamlIndent = indent === '\t' ? 2 : indent;
+      outputEl.value = jsyaml.dump(obj, { indent: yamlIndent, noArrayIndent: false, lineWidth: -1 });
     } else {
       const obj = jsyaml.load(raw);
-      outputEl.value = JSON.stringify(obj, null, indent);
+      outputEl.value = JSON.stringify(obj, null, indent === '\t' ? 2 : indent);
     }
+    updateStats(outputStats, outputEl.value);
   } catch (err) {
     errorEl.textContent = err.message;
     outputEl.value = '';
+    updateStats(outputStats, '');
   }
 }
 
+// Update labels for non-auto modes
 function updateLabels() {
-  if (directionEl.value === 'json2yaml') {
+  const dir = directionEl.value;
+  if (dir === 'json2yaml') {
     inputLabel.textContent = 'JSON Input';
     outputLabel.textContent = 'YAML Output';
-    inputEl.placeholder = 'Paste your JSON here…';
-  } else {
+    inputEl.placeholder = 'Paste or type your JSON here…\n\nTab key works for indentation\nDrop a .json or .yaml file here';
+  } else if (dir === 'yaml2json') {
     inputLabel.textContent = 'YAML Input';
     outputLabel.textContent = 'JSON Output';
-    inputEl.placeholder = 'Paste your YAML here…';
+    inputEl.placeholder = 'Paste or type your YAML here…\n\nTab key works for indentation\nDrop a .json or .yaml file here';
+  } else {
+    inputLabel.textContent = 'Input (auto-detect)';
+    outputLabel.textContent = 'Output';
+    inputEl.placeholder = 'Paste JSON or YAML — format is auto-detected\n\nTab key works for indentation\nDrop a .json or .yaml file here';
   }
 }
 
+// Tab & Shift+Tab support
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = inputEl.selectionStart;
+    const end = inputEl.selectionEnd;
+    const val = inputEl.value;
+    const indentStr = indentEl.value === 'tab' ? '\t' : ' '.repeat(Number(indentEl.value));
+
+    if (start === end && !e.shiftKey) {
+      // Simple tab insert
+      inputEl.value = val.substring(0, start) + indentStr + val.substring(end);
+      inputEl.selectionStart = inputEl.selectionEnd = start + indentStr.length;
+    } else {
+      // Multi-line indent/outdent
+      const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+      const lineEnd = val.indexOf('\n', end);
+      const block = val.substring(lineStart, lineEnd === -1 ? val.length : lineEnd);
+      const lines = block.split('\n');
+
+      let newLines;
+      if (e.shiftKey) {
+        newLines = lines.map(line => {
+          if (line.startsWith(indentStr)) return line.substring(indentStr.length);
+          return line.replace(/^[ \t]/, '');
+        });
+      } else {
+        newLines = lines.map(line => indentStr + line);
+      }
+
+      const newBlock = newLines.join('\n');
+      inputEl.value = val.substring(0, lineStart) + newBlock + val.substring(lineEnd === -1 ? val.length : lineEnd);
+      inputEl.selectionStart = lineStart;
+      inputEl.selectionEnd = lineStart + newBlock.length;
+    }
+    convert();
+  }
+});
+
+// Swap input ↔ output
+function swapPanels() {
+  if (!outputEl.value) return;
+  inputEl.value = outputEl.value;
+
+  const dir = directionEl.value;
+  if (dir === 'json2yaml') directionEl.value = 'yaml2json';
+  else if (dir === 'yaml2json') directionEl.value = 'json2yaml';
+
+  updateLabels();
+  convert();
+  toast('⇄ Swapped');
+}
+
+// Format / prettify input
+function formatInput() {
+  const raw = inputEl.value.trim();
+  if (!raw) return;
+  try {
+    const indent = getIndent();
+    // Try JSON first
+    try {
+      const obj = JSON.parse(raw);
+      inputEl.value = JSON.stringify(obj, null, indent === '\t' ? 2 : indent);
+    } catch {
+      // Try YAML
+      const obj = jsyaml.load(raw);
+      const yamlIndent = indent === '\t' ? 2 : indent;
+      inputEl.value = jsyaml.dump(obj, { indent: yamlIndent, noArrayIndent: false, lineWidth: -1 });
+    }
+    convert();
+    toast('✨ Formatted');
+  } catch (err) {
+    errorEl.textContent = 'Cannot format: ' + err.message;
+  }
+}
+
+// Minify input
+function minifyInput() {
+  const raw = inputEl.value.trim();
+  if (!raw) return;
+  try {
+    try {
+      const obj = JSON.parse(raw);
+      inputEl.value = JSON.stringify(obj);
+    } catch {
+      const obj = jsyaml.load(raw);
+      inputEl.value = JSON.stringify(obj);
+    }
+    convert();
+    toast('⊟ Minified');
+  } catch (err) {
+    errorEl.textContent = 'Cannot minify: ' + err.message;
+  }
+}
+
+// Copy with feedback
+async function copyOutput() {
+  if (!outputEl.value) return;
+  await navigator.clipboard.writeText(outputEl.value);
+  copyBtn.textContent = '✓ Copied!';
+  copyBtn.classList.add('copied');
+  toast('📋 Copied to clipboard');
+  setTimeout(() => { copyBtn.textContent = '📋 Copy'; copyBtn.classList.remove('copied'); }, 1500);
+}
+
+// Paste from clipboard
+async function pasteInput() {
+  try {
+    const text = await navigator.clipboard.readText();
+    inputEl.value = text;
+    inputEl.focus();
+    convert();
+    toast('📋 Pasted from clipboard');
+  } catch {
+    toast('Cannot read clipboard');
+  }
+}
+
+// Download output
+function downloadOutput() {
+  if (!outputEl.value) return;
+  const dir = directionEl.value === 'yaml2json' || (directionEl.value === 'auto' && detectFormat(inputEl.value) === 'yaml') ? 'json' : 'yaml';
+  const ext = dir === 'json' ? 'json' : 'yaml';
+  const mime = dir === 'json' ? 'application/json' : 'text/yaml';
+  const blob = new Blob([outputEl.value], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `output.${ext}`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`⬇ Downloaded output.${ext}`);
+}
+
+// Drag & drop file support
+inputPanel.addEventListener('dragover', e => { e.preventDefault(); inputPanel.classList.add('drag-over'); });
+inputPanel.addEventListener('dragleave', () => inputPanel.classList.remove('drag-over'));
+inputPanel.addEventListener('drop', e => {
+  e.preventDefault();
+  inputPanel.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    inputEl.value = reader.result;
+    // Auto-set direction based on file extension
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'json') directionEl.value = 'json2yaml';
+    else if (['yaml', 'yml'].includes(ext)) directionEl.value = 'yaml2json';
+    else directionEl.value = 'auto';
+    updateLabels();
+    convert();
+    toast(`📁 Loaded ${file.name}`);
+  };
+  reader.readAsText(file);
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); formatInput(); }
+  if (mod && e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); swapPanels(); }
+  if (mod && e.shiftKey && e.key.toLowerCase() === 'c') { e.preventDefault(); copyOutput(); }
+});
+
+// Event listeners
 inputEl.addEventListener('input', convert);
 indentEl.addEventListener('change', convert);
 directionEl.addEventListener('change', () => { updateLabels(); convert(); });
-clearBtn.addEventListener('click', () => { inputEl.value = ''; outputEl.value = ''; errorEl.textContent = ''; });
-
-copyBtn.addEventListener('click', async () => {
-  if (!outputEl.value) return;
-  await navigator.clipboard.writeText(outputEl.value);
-  copyBtn.textContent = 'Copied!';
-  copyBtn.classList.add('copied');
-  setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1500);
+clearBtn.addEventListener('click', () => {
+  inputEl.value = ''; outputEl.value = ''; errorEl.textContent = '';
+  updateStats(inputStats, ''); updateStats(outputStats, '');
+  inputEl.focus();
+  toast('✕ Cleared');
 });
+copyBtn.addEventListener('click', copyOutput);
+pasteBtn.addEventListener('click', pasteInput);
+swapBtn.addEventListener('click', swapPanels);
+formatBtn.addEventListener('click', formatInput);
+minifyBtn.addEventListener('click', minifyInput);
+downloadBtn.addEventListener('click', downloadOutput);
 
 // Example on load
 inputEl.value = `{
@@ -229,6 +571,7 @@ inputEl.value = `{
     "language": "en"
   }
 }`;
+updateLabels();
 convert();
 </script>
 </body>
