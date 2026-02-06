@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compare PDFs — Visual Diff</title>
+  <script type="module">
+    import pdfjsDist from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/+esm';
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/build/pdf.worker.min.mjs';
+  </script>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #e2e8f0; --muted: #94a3b8; --accent: #6366f1;
+      --accent-hover: #818cf8; --danger: #ef4444; --success: #22c55e;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    .upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .upload-box {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 2rem 1rem; text-align: center; cursor: pointer;
+      color: var(--muted); transition: border-color 0.2s, background 0.2s;
+    }
+    .upload-box:hover, .upload-box.drag-over { border-color: var(--accent); background: rgba(99,102,241,0.06); }
+    .upload-box.loaded { border-color: var(--success); border-style: solid; }
+    .upload-box .label { font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem; color: var(--text); }
+    .upload-box .hint { font-size: 0.8rem; }
+    .upload-box input { display: none; }
+
+    .controls { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    select, button {
+      padding: 0.45rem 0.9rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 0.85rem; cursor: pointer;
+    }
+    button { background: var(--accent); border-color: var(--accent); font-weight: 600; color: #fff; }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .diff-container { display: none; }
+    .page-pair {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+      margin-bottom: 1.5rem; align-items: start;
+    }
+    .page-pair canvas { width: 100%; border-radius: 6px; border: 1px solid var(--border); }
+    .page-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+
+    .diff-overlay-container {
+      position: relative; margin-bottom: 1.5rem;
+    }
+    .diff-overlay-container canvas { width: 100%; border-radius: 6px; }
+
+    .slider-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .slider-row input[type=range] { flex: 1; }
+    .slider-row label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+
+    .mode-tabs { display: flex; gap: 0; margin-bottom: 1rem; }
+    .mode-tab {
+      padding: 0.5rem 1.2rem; background: var(--bg); border: 1px solid var(--border);
+      cursor: pointer; font-size: 0.85rem; color: var(--muted); font-weight: 500;
+    }
+    .mode-tab:first-child { border-radius: 6px 0 0 6px; }
+    .mode-tab:last-child { border-radius: 0 6px 6px 0; }
+    .mode-tab.active { background: var(--surface); color: var(--accent); border-color: var(--accent); }
+
+    @media (max-width: 640px) {
+      .upload-row, .page-pair { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>📄 Compare PDFs</h1>
+    <p class="subtitle">Upload two PDFs to compare them side-by-side or with a pixel-diff overlay. Everything runs in your browser.</p>
+
+    <div class="upload-row">
+      <div class="upload-box" id="dropA">
+        <div class="label">PDF A (Original)</div>
+        <div class="hint" id="hintA">Drop PDF here or click to browse</div>
+        <input type="file" id="fileA" accept=".pdf">
+      </div>
+      <div class="upload-box" id="dropB">
+        <div class="label">PDF B (Modified)</div>
+        <div class="hint" id="hintB">Drop PDF here or click to browse</div>
+        <input type="file" id="fileB" accept=".pdf">
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="compareBtn" disabled>Compare</button>
+      <select id="pageSelect" style="display:none"></select>
+    </div>
+
+    <div class="diff-container" id="diffContainer">
+      <div class="mode-tabs">
+        <div class="mode-tab active" data-mode="side">Side by Side</div>
+        <div class="mode-tab" data-mode="overlay">Overlay</div>
+        <div class="mode-tab" data-mode="diff">Pixel Diff</div>
+      </div>
+
+      <div id="sideView" class="page-pair"></div>
+
+      <div id="overlayView" style="display:none">
+        <div class="slider-row">
+          <label>Opacity of PDF B:</label>
+          <input type="range" id="opacitySlider" min="0" max="100" value="50">
+          <span id="opacityVal">50%</span>
+        </div>
+        <div class="diff-overlay-container">
+          <canvas id="overlayCanvas"></canvas>
+        </div>
+      </div>
+
+      <div id="diffView" style="display:none">
+        <div class="diff-overlay-container">
+          <canvas id="diffCanvas"></canvas>
+        </div>
+        <p style="font-size:0.8rem; color:var(--muted);">Red pixels = differences between the two PDFs.</p>
+      </div>
+    </div>
+  </div>
+
+<script>
+let pdfA = null, pdfB = null;
+let pagesA = [], pagesB = [];
+let currentPage = 0;
+
+const dropA = document.getElementById('dropA');
+const dropB = document.getElementById('dropB');
+const fileA = document.getElementById('fileA');
+const fileB = document.getElementById('fileB');
+const hintA = document.getElementById('hintA');
+const hintB = document.getElementById('hintB');
+const compareBtn = document.getElementById('compareBtn');
+const pageSelect = document.getElementById('pageSelect');
+const diffContainer = document.getElementById('diffContainer');
+
+function setupDrop(dropEl, inputEl, hintEl, side) {
+  dropEl.addEventListener('click', () => inputEl.click());
+  dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('drag-over'); });
+  dropEl.addEventListener('dragleave', () => dropEl.classList.remove('drag-over'));
+  dropEl.addEventListener('drop', e => {
+    e.preventDefault(); dropEl.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadPDF(e.dataTransfer.files[0], side, dropEl, hintEl);
+  });
+  inputEl.addEventListener('change', () => {
+    if (inputEl.files[0]) loadPDF(inputEl.files[0], side, dropEl, hintEl);
+  });
+}
+
+async function loadPDF(file, side, dropEl, hintEl) {
+  const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
+  if (side === 'A') pdfA = pdf; else pdfB = pdf;
+  dropEl.classList.add('loaded');
+  hintEl.textContent = `${file.name} (${pdf.numPages} pages)`;
+  compareBtn.disabled = !(pdfA && pdfB);
+}
+
+setupDrop(dropA, fileA, hintA, 'A');
+setupDrop(dropB, fileB, hintB, 'B');
+
+async function renderPage(pdf, pageNum, scale = 1.5) {
+  const page = await pdf.getPage(pageNum);
+  const vp = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  return canvas;
+}
+
+compareBtn.addEventListener('click', async () => {
+  const total = Math.max(pdfA.numPages, pdfB.numPages);
+  pagesA = []; pagesB = [];
+
+  compareBtn.textContent = 'Rendering…';
+  compareBtn.disabled = true;
+
+  for (let i = 1; i <= total; i++) {
+    const cA = i <= pdfA.numPages ? await renderPage(pdfA, i) : null;
+    const cB = i <= pdfB.numPages ? await renderPage(pdfB, i) : null;
+    pagesA.push(cA); pagesB.push(cB);
+  }
+
+  pageSelect.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = `Page ${i + 1}`;
+    pageSelect.appendChild(opt);
+  }
+  pageSelect.style.display = 'inline-block';
+  diffContainer.style.display = 'block';
+  compareBtn.textContent = 'Compare';
+  compareBtn.disabled = false;
+
+  currentPage = 0;
+  showPage(0);
+});
+
+pageSelect.addEventListener('change', () => showPage(Number(pageSelect.value)));
+
+function showPage(idx) {
+  currentPage = idx;
+  showSide(idx);
+  showOverlay(idx);
+  showDiff(idx);
+}
+
+function showSide(idx) {
+  const el = document.getElementById('sideView');
+  el.innerHTML = '';
+  if (pagesA[idx]) { const d = document.createElement('div'); const l = document.createElement('div'); l.className='page-label'; l.textContent='PDF A'; d.appendChild(l); d.appendChild(pagesA[idx].cloneNode(true)); el.appendChild(d); }
+  if (pagesB[idx]) { const d = document.createElement('div'); const l = document.createElement('div'); l.className='page-label'; l.textContent='PDF B'; d.appendChild(l); d.appendChild(pagesB[idx].cloneNode(true)); el.appendChild(d); }
+  // Copy pixel data to cloned canvases
+  if (pagesA[idx]) { const c = el.querySelectorAll('canvas')[0]; c.width = pagesA[idx].width; c.height = pagesA[idx].height; c.getContext('2d').drawImage(pagesA[idx], 0, 0); }
+  if (pagesB[idx]) { const cs = el.querySelectorAll('canvas'); const c = cs[cs.length-1]; c.width = pagesB[idx].width; c.height = pagesB[idx].height; c.getContext('2d').drawImage(pagesB[idx], 0, 0); }
+}
+
+function showOverlay(idx) {
+  const canvas = document.getElementById('overlayCanvas');
+  const cA = pagesA[idx], cB = pagesB[idx];
+  if (!cA && !cB) return;
+  const src = cA || cB;
+  canvas.width = src.width; canvas.height = src.height;
+  const ctx = canvas.getContext('2d');
+  const opacity = document.getElementById('opacitySlider').value / 100;
+  if (cA) { ctx.globalAlpha = 1; ctx.drawImage(cA, 0, 0); }
+  if (cB) { ctx.globalAlpha = opacity; ctx.drawImage(cB, 0, 0); }
+  ctx.globalAlpha = 1;
+}
+
+document.getElementById('opacitySlider').addEventListener('input', e => {
+  document.getElementById('opacityVal').textContent = e.target.value + '%';
+  showOverlay(currentPage);
+});
+
+function showDiff(idx) {
+  const canvas = document.getElementById('diffCanvas');
+  const cA = pagesA[idx], cB = pagesB[idx];
+  if (!cA || !cB) return;
+  const w = Math.max(cA.width, cB.width), h = Math.max(cA.height, cB.height);
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  const getPixels = (c) => {
+    const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
+    tmp.getContext('2d').drawImage(c, 0, 0);
+    return tmp.getContext('2d').getImageData(0, 0, w, h);
+  };
+
+  const dataA = getPixels(cA);
+  const dataB = getPixels(cB);
+  const out = ctx.createImageData(w, h);
+
+  for (let i = 0; i < dataA.data.length; i += 4) {
+    const dr = Math.abs(dataA.data[i] - dataB.data[i]);
+    const dg = Math.abs(dataA.data[i+1] - dataB.data[i+1]);
+    const db = Math.abs(dataA.data[i+2] - dataB.data[i+2]);
+    const diff = dr + dg + db;
+    if (diff > 30) {
+      out.data[i] = 239; out.data[i+1] = 68; out.data[i+2] = 68; out.data[i+3] = 255;
+    } else {
+      // Dim the original
+      out.data[i] = dataA.data[i] * 0.3;
+      out.data[i+1] = dataA.data[i+1] * 0.3;
+      out.data[i+2] = dataA.data[i+2] * 0.3;
+      out.data[i+3] = 255;
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+}
+
+// Mode tabs
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('sideView').style.display = tab.dataset.mode === 'side' ? 'grid' : 'none';
+    document.getElementById('overlayView').style.display = tab.dataset.mode === 'overlay' ? 'block' : 'none';
+    document.getElementById('diffView').style.display = tab.dataset.mode === 'diff' ? 'block' : 'none';
+    if (tab.dataset.mode === 'overlay') showOverlay(currentPage);
+    if (tab.dataset.mode === 'diff') showDiff(currentPage);
+  });
+});
+</script>
+</body>
+</html>

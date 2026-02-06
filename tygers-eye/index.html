@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Tyger's Eye — Literary Autopsy</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+    :root {
+      --parchment: #1a1610;
+      --parchment-light: #2a2318;
+      --ink: #d4c5a0;
+      --ink-dim: #8a7d62;
+      --gold: #c9a84c;
+      --gold-glow: #e8c84c;
+      --blood: #8b3a3a;
+      --heaven: #5b7ea8;
+      --hell: #6b2d2d;
+      --copper: #b87333;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IM Fell English', serif;
+      background: var(--parchment);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(139,58,58,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 30%, rgba(91,126,168,0.06) 0%, transparent 50%);
+    }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--gold); text-decoration: none; font-size: 0.85rem; font-family: sans-serif; }
+    .back-link:hover { text-decoration: underline; }
+
+    .header {
+      text-align: center; margin-bottom: 2rem;
+      border-bottom: 1px solid var(--ink-dim);
+      padding-bottom: 1.5rem;
+    }
+    .header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(201,168,76,0.2);
+      margin-bottom: 0.25rem;
+    }
+    .header .epigraph {
+      font-style: italic;
+      color: var(--ink-dim);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      resize: vertical;
+      background: rgba(0,0,0,0.3);
+      color: var(--ink);
+      border: 1px solid var(--ink-dim);
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-family: 'IM Fell English', serif;
+      font-size: 1rem;
+      line-height: 1.8;
+      outline: none;
+    }
+    textarea:focus { border-color: var(--gold); }
+    textarea::placeholder { color: var(--ink-dim); }
+
+    .analyze-btn {
+      display: block;
+      margin: 1.5rem auto;
+      padding: 0.75rem 2.5rem;
+      background: linear-gradient(135deg, var(--blood), #4a1a1a);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      transition: all 0.3s;
+    }
+    .analyze-btn:hover {
+      background: linear-gradient(135deg, #a04040, #5a2020);
+      box-shadow: 0 0 20px rgba(201,168,76,0.2);
+    }
+
+    .results { display: none; margin-top: 2rem; }
+
+    /* Duality Meter */
+    .duality-section {
+      background: var(--parchment-light);
+      border: 1px solid var(--ink-dim);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    .duality-bar {
+      height: 32px;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      margin: 0.75rem 0;
+      border: 1px solid var(--ink-dim);
+    }
+    .duality-hell {
+      background: linear-gradient(90deg, var(--hell), #4a2020);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; color: #daa; font-weight: bold;
+      transition: width 0.8s ease;
+    }
+    .duality-heaven {
+      background: linear-gradient(90deg, #2d3d5b, var(--heaven));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; color: #aac8e8; font-weight: bold;
+      transition: width 0.8s ease;
+    }
+    .duality-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.8rem; color: var(--ink-dim);
+    }
+
+    .meter-row { margin-bottom: 1rem; }
+    .meter-label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 0.3rem;
+    }
+    .meter-label span:first-child { font-size: 0.85rem; }
+    .meter-label span:last-child { font-size: 0.75rem; color: var(--ink-dim); }
+    .meter-track {
+      height: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;
+    }
+    .meter-fill {
+      height: 100%; border-radius: 4px; transition: width 0.8s ease;
+    }
+
+    /* Rhythm visualization */
+    .rhythm-section {
+      background: var(--parchment-light);
+      border: 1px solid var(--ink-dim);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .rhythm-line {
+      display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 0.5rem;
+      align-items: end; min-height: 40px;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(138,125,98,0.2);
+    }
+    .rhythm-word {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 2px;
+    }
+    .rhythm-bar {
+      width: 6px; border-radius: 3px;
+      background: var(--copper);
+      transition: height 0.3s;
+    }
+    .rhythm-bar.stressed {
+      background: var(--gold);
+      box-shadow: 0 0 6px rgba(201,168,76,0.4);
+    }
+    .rhythm-text {
+      font-size: 0.7rem; color: var(--ink-dim);
+    }
+
+    /* Sentence tree */
+    .tree-section {
+      background: var(--parchment-light);
+      border: 1px solid var(--ink-dim);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .tree-canvas-container {
+      overflow-x: auto;
+      margin-top: 0.75rem;
+    }
+    canvas#treeCanvas {
+      border-radius: var(--radius);
+    }
+
+    /* Word analysis */
+    .word-section {
+      background: var(--parchment-light);
+      border: 1px solid var(--ink-dim);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .word-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    }
+    .word-col h4 {
+      font-family: 'Playfair Display', serif;
+      font-size: 0.9rem;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .word-col ul {
+      list-style: none; font-size: 0.85rem; line-height: 1.8;
+    }
+    .word-col ul li::before {
+      content: '✦ ';
+      color: var(--ink-dim);
+      font-size: 0.6rem;
+    }
+    .word-col.latin li { color: #daa; }
+    .word-col.saxon li { color: #aac8e8; }
+
+    /* Summary */
+    .summary-section {
+      background: var(--parchment-light);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .summary-verdict {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .summary-desc {
+      font-size: 0.9rem;
+      color: var(--ink-dim);
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    @media (max-width: 640px) {
+      .header h1 { font-size: 1.8rem; }
+      .word-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+
+    <div class="header">
+      <h1>🐅 The Tyger's Eye</h1>
+      <p class="epigraph">
+        "What immortal hand or eye<br>
+        Could frame thy fearful symmetry?"<br>
+        — William Blake, <em>The Tyger</em>
+      </p>
+    </div>
+
+    <textarea id="input" placeholder="Paste thy prose here, and let the eye of the Tyger gaze upon it…&#10;&#10;It shall reveal the hidden music of your words — their rhythm, their lineage, the war between darkness and light that dwells in every sentence."></textarea>
+
+    <button class="analyze-btn" id="analyzeBtn">Perform the Autopsy</button>
+
+    <div class="results" id="results">
+
+      <div class="duality-section">
+        <div class="section-title">⚖️ The Miltonic Duality — Darkness vs. Light</div>
+        <p style="font-size:0.8rem; color:var(--ink-dim); margin-bottom:0.75rem; font-style:italic;">
+          "The mind is its own place, and in itself can make a Heaven of Hell, a Hell of Heaven." — Paradise Lost
+        </p>
+        <div class="duality-bar">
+          <div class="duality-hell" id="darknessBar">Dark</div>
+          <div class="duality-heaven" id="lightBar">Light</div>
+        </div>
+        <div class="duality-labels">
+          <span>🔥 Abstract / Latinate / Pandæmonium</span>
+          <span>✧ Concrete / Anglo-Saxon / Paradise</span>
+        </div>
+
+        <div style="margin-top: 1.25rem;">
+          <div class="meter-row">
+            <div class="meter-label"><span>Abstract vs Concrete</span><span id="absConLabel"></span></div>
+            <div class="meter-track"><div class="meter-fill" id="absConFill" style="background: linear-gradient(90deg, var(--hell), var(--heaven));"></div></div>
+          </div>
+          <div class="meter-row">
+            <div class="meter-label"><span>Latinate vs Anglo-Saxon</span><span id="latSaxLabel"></span></div>
+            <div class="meter-track"><div class="meter-fill" id="latSaxFill" style="background: linear-gradient(90deg, var(--copper), var(--gold));"></div></div>
+          </div>
+          <div class="meter-row">
+            <div class="meter-label"><span>Sentence Complexity</span><span id="complexLabel"></span></div>
+            <div class="meter-track"><div class="meter-fill" id="complexFill" style="background: var(--blood);"></div></div>
+          </div>
+          <div class="meter-row">
+            <div class="meter-label"><span>Lexical Density</span><span id="densityLabel"></span></div>
+            <div class="meter-track"><div class="meter-fill" id="densityFill" style="background: var(--copper);"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rhythm-section">
+        <div class="section-title">🎵 The Music of the Spheres — Syllabic Rhythm</div>
+        <p style="font-size:0.8rem; color:var(--ink-dim); margin-bottom:0.75rem; font-style:italic;">
+          Stressed syllables rise like spires; unstressed ones flow like rivers.
+        </p>
+        <div id="rhythmViz"></div>
+      </div>
+
+      <div class="tree-section">
+        <div class="section-title">🌳 The Tree of Knowledge — Sentence Architecture</div>
+        <p style="font-size:0.8rem; color:var(--ink-dim); margin-bottom:0.75rem; font-style:italic;">
+          Each sentence grows like Blake's illuminated trees — branching from root to canopy.
+        </p>
+        <div class="tree-canvas-container">
+          <canvas id="treeCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="word-section">
+        <div class="section-title">📜 The Lineage of Words</div>
+        <div class="word-grid">
+          <div class="word-col latin">
+            <h4>🔥 Latinate / Abstract</h4>
+            <ul id="latinWords"></ul>
+          </div>
+          <div class="word-col saxon">
+            <h4>✧ Anglo-Saxon / Concrete</h4>
+            <ul id="saxonWords"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-section">
+        <div class="summary-verdict" id="verdict"></div>
+        <div class="summary-desc" id="verdictDesc"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Syllable counter (approximation)
+function countSyllables(word) {
+  word = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (word.length <= 2) return 1;
+  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
+  word = word.replace(/^y/, '');
+  const m = word.match(/[aeiouy]{1,2}/g);
+  return m ? m.length : 1;
+}
+
+// Simple stress pattern (odd syllables stressed — crude iambic approximation)
+function getStressPattern(word) {
+  const syl = countSyllables(word);
+  const pattern = [];
+  for (let i = 0; i < syl; i++) {
+    pattern.push(i % 2 === (syl > 1 ? 1 : 0));
+  }
+  return pattern;
+}
+
+// Latinate suffixes (words derived from Latin/French tend to have these)
+const LATIN_SUFFIXES = ['tion','sion','ment','ence','ance','ious','eous','ible','able','ular','ular','ity','ive','ous','ant','ent','al','ic','ate','ure','ism'];
+const ABSTRACT_WORDS = new Set(['idea','concept','theory','freedom','justice','truth','beauty','love','hate','fear','hope','faith','reason','thought','mind','soul','spirit','nature','power','knowledge','wisdom','virtue','evil','good','chaos','order','time','eternity','infinity','universe','existence','consciousness','perception','reality','illusion','imagination','memory','desire','passion','emotion','intellect','morality','philosophy','metaphysics','transcendence','sublime','divine','sacred','profane','destiny','fate']);
+const CONCRETE_WORDS = new Set(['tree','stone','water','fire','blood','bone','hand','eye','sun','moon','star','earth','river','mountain','field','road','door','wall','roof','floor','table','chair','bed','bread','meat','wine','milk','horse','dog','bird','fish','leaf','root','seed','rain','snow','wind','cloud','sky','sea','sand','iron','gold','wood','wool','silk','glass','clay','salt','ash']);
+
+function isLatinate(word) {
+  const w = word.toLowerCase();
+  if (w.length < 4) return false;
+  return LATIN_SUFFIXES.some(s => w.endsWith(s)) || countSyllables(w) >= 4;
+}
+
+function isAbstract(word) {
+  return ABSTRACT_WORDS.has(word.toLowerCase()) || isLatinate(word);
+}
+
+function isConcrete(word) {
+  return CONCRETE_WORDS.has(word.toLowerCase());
+}
+
+// Content words (not function words)
+const FUNCTION_WORDS = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','by','from','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','shall','can','this','that','these','those','it','its','i','you','he','she','we','they','me','him','her','us','them','my','your','his','our','their','not','no','if','then','than','so','as','up','out','about','into','over','after','before','between','under','above','below','each','every','all','both','few','more','most','other','some','such','only','same','just','also','very','much','too','quite','rather','still','yet','already','even','now','here','there','where','when','how','what','which','who','whom','whose','why']);
+
+function analyze(text) {
+  const words = text.match(/\b[a-zA-Z']+\b/g) || [];
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const contentWords = words.filter(w => !FUNCTION_WORDS.has(w.toLowerCase()));
+
+  // Duality analysis
+  let abstractCount = 0, concreteCount = 0;
+  let latinCount = 0, saxonCount = 0;
+  const latinWordsList = [], saxonWordsList = [];
+
+  words.forEach(w => {
+    const lower = w.toLowerCase();
+    if (isAbstract(lower)) { abstractCount++; latinWordsList.push(lower); }
+    if (isConcrete(lower)) { concreteCount++; saxonWordsList.push(lower); }
+    if (isLatinate(lower)) latinCount++;
+    else if (lower.length >= 3) saxonCount++;
+  });
+
+  const totalAbsCon = abstractCount + concreteCount || 1;
+  const darknessRatio = abstractCount / totalAbsCon;
+
+  const totalLatSax = latinCount + saxonCount || 1;
+  const latinRatio = latinCount / totalLatSax;
+
+  // Complexity: avg words per sentence
+  const avgWordsPerSentence = words.length / (sentences.length || 1);
+  const complexity = Math.min(avgWordsPerSentence / 40, 1);
+
+  // Lexical density: content words / total words
+  const density = contentWords.length / (words.length || 1);
+
+  return {
+    words, sentences, contentWords,
+    darknessRatio, latinRatio, complexity, density,
+    abstractCount, concreteCount, latinCount, saxonCount,
+    latinWordsList: [...new Set(latinWordsList)].slice(0, 15),
+    saxonWordsList: [...new Set(saxonWordsList)].slice(0, 15),
+    avgWordsPerSentence: avgWordsPerSentence.toFixed(1)
+  };
+}
+
+// Render rhythm
+function renderRhythm(text) {
+  const container = document.getElementById('rhythmViz');
+  container.innerHTML = '';
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim()).slice(0, 8);
+
+  sentences.forEach(sentence => {
+    const line = document.createElement('div');
+    line.className = 'rhythm-line';
+    const words = sentence.trim().match(/\b[a-zA-Z']+\b/g) || [];
+
+    words.forEach(word => {
+      const pattern = getStressPattern(word);
+      const wordDiv = document.createElement('div');
+      wordDiv.className = 'rhythm-word';
+
+      const barsDiv = document.createElement('div');
+      barsDiv.style.display = 'flex';
+      barsDiv.style.gap = '2px';
+      barsDiv.style.alignItems = 'end';
+
+      pattern.forEach(stressed => {
+        const bar = document.createElement('div');
+        bar.className = 'rhythm-bar' + (stressed ? ' stressed' : '');
+        bar.style.height = stressed ? '24px' : '10px';
+        barsDiv.appendChild(bar);
+      });
+
+      const label = document.createElement('div');
+      label.className = 'rhythm-text';
+      label.textContent = word.length > 10 ? word.slice(0, 8) + '…' : word;
+
+      wordDiv.appendChild(barsDiv);
+      wordDiv.appendChild(label);
+      line.appendChild(wordDiv);
+    });
+
+    container.appendChild(line);
+  });
+}
+
+// Render sentence tree
+function renderTree(sentences) {
+  const canvas = document.getElementById('treeCanvas');
+  const ctx = canvas.getContext('2d');
+  const maxSentences = Math.min(sentences.length, 12);
+  const treeWidth = Math.max(600, maxSentences * 100);
+  canvas.width = treeWidth;
+  canvas.height = 350;
+
+  ctx.fillStyle = 'rgba(0,0,0,0)';
+  ctx.clearRect(0, 0, treeWidth, 350);
+
+  // Draw trunk
+  const cx = treeWidth / 2;
+  ctx.strokeStyle = '#6b4a2a';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(cx, 340);
+  ctx.lineTo(cx, 200);
+  ctx.stroke();
+
+  // Draw roots
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#4a3520';
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(cx, 340);
+    ctx.quadraticCurveTo(cx + i * 30, 360, cx + i * 50, 350);
+    ctx.stroke();
+  }
+
+  // Draw branches for each sentence
+  sentences.slice(0, maxSentences).forEach((sentence, idx) => {
+    const words = sentence.trim().match(/\b[a-zA-Z']+\b/g) || [];
+    const angle = ((idx / (maxSentences - 1 || 1)) - 0.5) * Math.PI * 0.8;
+    const branchLen = 80 + Math.min(words.length * 3, 100);
+
+    const startY = 200 - idx * 5;
+    const endX = cx + Math.sin(angle) * branchLen;
+    const endY = startY - Math.cos(angle) * branchLen;
+
+    // Branch
+    const hue = 30 + idx * 8;
+    ctx.strokeStyle = `hsl(${hue}, 40%, 35%)`;
+    ctx.lineWidth = Math.max(1.5, 4 - idx * 0.3);
+    ctx.beginPath();
+    ctx.moveTo(cx, startY);
+    ctx.quadraticCurveTo(cx + Math.sin(angle) * branchLen * 0.5, startY - 30, endX, endY);
+    ctx.stroke();
+
+    // Leaves (words as circles)
+    words.slice(0, 12).forEach((word, wi) => {
+      const t = (wi + 1) / (Math.min(words.length, 12) + 1);
+      const bx = cx + Math.sin(angle) * branchLen * t;
+      const by = startY - Math.cos(angle) * branchLen * t + (Math.random() - 0.5) * 15;
+      const syl = countSyllables(word);
+      const r = 3 + syl * 1.5;
+
+      const leafHue = isAbstract(word) ? 0 : (isConcrete(word) ? 200 : 90);
+      const alpha = 0.5 + syl * 0.1;
+
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${leafHue}, 50%, 50%, ${alpha})`;
+      ctx.fill();
+    });
+  });
+}
+
+// Verdict
+function getVerdict(analysis) {
+  const { darknessRatio, latinRatio, complexity, density } = analysis;
+
+  if (darknessRatio > 0.65 && complexity > 0.5) {
+    return {
+      title: 'A Voice from Pandæmonium',
+      desc: 'Your prose dwells in the abstract fires of Milton\'s Hell — complex, Latinate, reaching for ideas beyond mortal grasp. Satan himself would approve of this rhetoric.'
+    };
+  } else if (darknessRatio < 0.35 && complexity < 0.4) {
+    return {
+      title: 'Songs of Innocence',
+      desc: 'Like Blake\'s lamb, your words are simple, concrete, and grounded in the earth. They sing with the clarity of a child\'s vision — direct and luminous.'
+    };
+  } else if (latinRatio > 0.5 && density > 0.5) {
+    return {
+      title: 'The Scholar of Paradise Lost',
+      desc: 'Your language carries the weight of Latin cathedrals — dense, ornate, and architecturally precise. Milton would recognize a kindred builder of verbal monuments.'
+    };
+  } else if (complexity > 0.6) {
+    return {
+      title: 'The Prophetic Books',
+      desc: 'Like Blake\'s later prophetic works, your sentences spiral outward in great labyrinthine arcs — visions too vast for simple grammar to contain.'
+    };
+  } else if (density < 0.4) {
+    return {
+      title: 'The Marriage of Heaven and Hell',
+      desc: 'Your prose moves between worlds — neither wholly concrete nor abstract, it dances on the boundary where contraries meet and generate meaning.'
+    };
+  } else {
+    return {
+      title: 'Songs of Experience',
+      desc: 'Your writing has seen the world — it balances innocence and knowledge, the concrete and the abstract, like Blake\'s experienced chimney sweeper gazing at both earth and sky.'
+    };
+  }
+}
+
+// Main
+document.getElementById('analyzeBtn').addEventListener('click', () => {
+  const text = document.getElementById('input').value.trim();
+  if (!text) return;
+
+  const a = analyze(text);
+  const results = document.getElementById('results');
+  results.style.display = 'block';
+
+  // Duality bar
+  const dp = Math.round(a.darknessRatio * 100);
+  document.getElementById('darknessBar').style.width = dp + '%';
+  document.getElementById('darknessBar').textContent = dp + '% Dark';
+  document.getElementById('lightBar').style.width = (100 - dp) + '%';
+  document.getElementById('lightBar').textContent = (100 - dp) + '% Light';
+
+  // Meters
+  document.getElementById('absConFill').style.width = (100 - dp) + '%';
+  document.getElementById('absConLabel').textContent = `${a.abstractCount} abstract / ${a.concreteCount} concrete`;
+
+  const lr = Math.round(a.latinRatio * 100);
+  document.getElementById('latSaxFill').style.width = lr + '%';
+  document.getElementById('latSaxLabel').textContent = `${a.latinCount} Latinate / ${a.saxonCount} Germanic`;
+
+  document.getElementById('complexFill').style.width = Math.round(a.complexity * 100) + '%';
+  document.getElementById('complexLabel').textContent = `${a.avgWordsPerSentence} words/sentence`;
+
+  document.getElementById('densityFill').style.width = Math.round(a.density * 100) + '%';
+  document.getElementById('densityLabel').textContent = `${Math.round(a.density * 100)}% content words`;
+
+  // Rhythm
+  renderRhythm(text);
+
+  // Tree
+  renderTree(a.sentences);
+
+  // Word lists
+  const latinUl = document.getElementById('latinWords');
+  const saxonUl = document.getElementById('saxonWords');
+  latinUl.innerHTML = a.latinWordsList.map(w => `<li>${w}</li>`).join('') || '<li style="color:var(--ink-dim)">None found</li>';
+  saxonUl.innerHTML = a.saxonWordsList.map(w => `<li>${w}</li>`).join('') || '<li style="color:var(--ink-dim)">None found</li>';
+
+  // Verdict
+  const v = getVerdict(a);
+  document.getElementById('verdict').textContent = v.title;
+  document.getElementById('verdictDesc').textContent = v.desc;
+
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+</script>
+</body>
+</html>

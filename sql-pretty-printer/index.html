@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL Pretty Printer</title>
+  <script src="https://cdn.jsdelivr.net/npm/sql-formatter@15.3.1/dist/sql-formatter.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #e2e8f0; --muted: #94a3b8; --accent: #6366f1;
+      --accent-hover: #818cf8; --success: #22c55e; --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+    select, .toolbar button {
+      padding: 0.4rem 0.75rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 0.8rem; cursor: pointer; font-weight: 500;
+    }
+    .toolbar button:hover { background: var(--border); }
+    .toolbar .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .toolbar .primary:hover { background: var(--accent-hover); }
+    .toolbar .copied { background: var(--success); border-color: var(--success); color: #fff; }
+
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .panel { background: var(--surface); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .panel-header h2 { font-size: 0.95rem; }
+
+    textarea {
+      width: 100%; flex: 1; min-height: 400px; resize: vertical;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem;
+      font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.85rem; line-height: 1.6; outline: none; tab-size: 2;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    .stats { font-size: 0.72rem; color: var(--muted); margin-top: 0.4rem; text-align: right; }
+
+    @media (max-width: 640px) { .panels { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>🗃 SQL Pretty Printer</h1>
+    <p class="subtitle">Paste messy SQL and get it beautifully formatted. Supports MySQL, PostgreSQL, T-SQL, PL/SQL, and more.</p>
+
+    <div class="toolbar">
+      <select id="dialect" title="SQL dialect">
+        <option value="sql">Standard SQL</option>
+        <option value="mysql">MySQL</option>
+        <option value="postgresql" selected>PostgreSQL</option>
+        <option value="transactsql">T-SQL</option>
+        <option value="plsql">PL/SQL</option>
+        <option value="mariadb">MariaDB</option>
+        <option value="sqlite">SQLite</option>
+        <option value="bigquery">BigQuery</option>
+        <option value="spark">Spark SQL</option>
+      </select>
+      <select id="indent" title="Indentation">
+        <option value="2" selected>2 spaces</option>
+        <option value="4">4 spaces</option>
+        <option value="tab">Tab</option>
+      </select>
+      <select id="keywordCase" title="Keyword case">
+        <option value="upper" selected>UPPERCASE keywords</option>
+        <option value="lower">lowercase keywords</option>
+        <option value="preserve">Preserve case</option>
+      </select>
+      <button class="primary" id="formatBtn">✨ Format</button>
+      <button id="minifyBtn">⊟ Minify</button>
+      <button id="clearBtn">✕ Clear</button>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>SQL Input</h2>
+          <button id="pasteBtn" style="padding:0.25rem 0.5rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:0.75rem; cursor:pointer;">📋 Paste</button>
+        </div>
+        <textarea id="input" spellcheck="false" placeholder="Paste your SQL here…&#10;&#10;Tab key works for indentation"></textarea>
+        <div class="stats" id="inputStats"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Formatted Output</h2>
+          <button id="copyBtn" style="padding:0.25rem 0.5rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:0.75rem; cursor:pointer;">📋 Copy</button>
+        </div>
+        <textarea id="output" readonly spellcheck="false" placeholder="Formatted SQL will appear here…"></textarea>
+        <div class="stats" id="outputStats"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const inputEl = document.getElementById('input');
+const outputEl = document.getElementById('output');
+const dialectEl = document.getElementById('dialect');
+const indentEl = document.getElementById('indent');
+const keywordCaseEl = document.getElementById('keywordCase');
+const formatBtn = document.getElementById('formatBtn');
+const minifyBtn = document.getElementById('minifyBtn');
+const clearBtn = document.getElementById('clearBtn');
+const copyBtn = document.getElementById('copyBtn');
+const pasteBtn = document.getElementById('pasteBtn');
+const inputStats = document.getElementById('inputStats');
+const outputStats = document.getElementById('outputStats');
+
+function stats(el, text) {
+  if (!text.trim()) { el.textContent = ''; return; }
+  el.textContent = `${text.split('\n').length} lines · ${text.length} chars`;
+}
+
+function format() {
+  const raw = inputEl.value;
+  if (!raw.trim()) { outputEl.value = ''; stats(outputStats, ''); return; }
+  const indentVal = indentEl.value;
+  try {
+    outputEl.value = sqlFormatter.format(raw, {
+      language: dialectEl.value,
+      tabWidth: indentVal === 'tab' ? 2 : Number(indentVal),
+      useTabs: indentVal === 'tab',
+      keywordCase: keywordCaseEl.value,
+    });
+    stats(outputStats, outputEl.value);
+  } catch (err) {
+    outputEl.value = '-- Error: ' + err.message;
+  }
+}
+
+function minify() {
+  const raw = inputEl.value;
+  if (!raw.trim()) return;
+  outputEl.value = raw.replace(/\s+/g, ' ').replace(/\s*([(),;])\s*/g, '$1').trim();
+  stats(outputStats, outputEl.value);
+}
+
+// Live formatting as you type
+inputEl.addEventListener('input', () => { stats(inputStats, inputEl.value); format(); });
+dialectEl.addEventListener('change', format);
+indentEl.addEventListener('change', format);
+keywordCaseEl.addEventListener('change', format);
+formatBtn.addEventListener('click', format);
+minifyBtn.addEventListener('click', minify);
+clearBtn.addEventListener('click', () => { inputEl.value = ''; outputEl.value = ''; stats(inputStats, ''); stats(outputStats, ''); inputEl.focus(); });
+
+// Tab support
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = inputEl.selectionStart, end = inputEl.selectionEnd;
+    const indent = indentEl.value === 'tab' ? '\t' : ' '.repeat(Number(indentEl.value));
+    if (e.shiftKey) {
+      const before = inputEl.value.substring(0, s);
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const line = inputEl.value.substring(lineStart);
+      if (line.startsWith(indent)) {
+        inputEl.value = inputEl.value.substring(0, lineStart) + line.substring(indent.length);
+        inputEl.selectionStart = inputEl.selectionEnd = s - indent.length;
+      }
+    } else {
+      inputEl.value = inputEl.value.substring(0, s) + indent + inputEl.value.substring(end);
+      inputEl.selectionStart = inputEl.selectionEnd = s + indent.length;
+    }
+    format();
+  }
+});
+
+copyBtn.addEventListener('click', async () => {
+  if (!outputEl.value) return;
+  await navigator.clipboard.writeText(outputEl.value);
+  copyBtn.textContent = '✓ Copied!'; copyBtn.style.background = 'var(--success)'; copyBtn.style.borderColor = 'var(--success)'; copyBtn.style.color = '#fff';
+  setTimeout(() => { copyBtn.textContent = '📋 Copy'; copyBtn.style.background = ''; copyBtn.style.borderColor = ''; copyBtn.style.color = ''; }, 1500);
+});
+
+pasteBtn.addEventListener('click', async () => {
+  try { inputEl.value = await navigator.clipboard.readText(); stats(inputStats, inputEl.value); format(); } catch {}
+});
+
+// Example
+inputEl.value = `select u.id, u.name, u.email, o.id as order_id, o.total, o.created_at from users u inner join orders o on u.id = o.user_id left join payments p on o.id = p.order_id where u.active = true and o.total > 100 and o.created_at >= '2024-01-01' group by u.id, u.name, u.email, o.id, o.total, o.created_at having count(p.id) > 0 order by o.created_at desc limit 50;`;
+stats(inputStats, inputEl.value);
+format();
+</script>
+</body>
+</html>

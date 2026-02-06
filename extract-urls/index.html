@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extract URLs</title>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #e2e8f0; --muted: #94a3b8; --accent: #6366f1;
+      --accent-hover: #818cf8; --success: #22c55e; --danger: #ef4444;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    .input-section {
+      background: var(--surface); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem;
+    }
+    .input-section h2 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+    textarea {
+      width: 100%; min-height: 180px; resize: vertical;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem; font-family: inherit; font-size: 0.9rem;
+      line-height: 1.5; outline: none;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; align-items: center; }
+    button {
+      padding: 0.4rem 0.85rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 0.8rem; cursor: pointer; font-weight: 500;
+    }
+    button:hover { background: var(--border); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.primary:hover { background: var(--accent-hover); }
+    button.success { background: var(--success); border-color: var(--success); color: #fff; }
+
+    .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+    .filters label { font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 0.3rem; }
+    .filters input[type=text] {
+      padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 0.8rem; width: 180px; outline: none;
+    }
+    .filters input[type=text]:focus { border-color: var(--accent); }
+    .filters input[type=checkbox] { width: 1rem; height: 1rem; }
+
+    .results { display: none; }
+    .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .results-header h2 { font-size: 1rem; }
+    .count-badge {
+      background: var(--accent); color: #fff; padding: 0.15rem 0.6rem;
+      border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+    }
+
+    .url-list {
+      background: var(--surface); border-radius: var(--radius); overflow: hidden;
+    }
+    .url-item {
+      padding: 0.6rem 1rem; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+      font-size: 0.85rem; word-break: break-all;
+    }
+    .url-item:last-child { border-bottom: none; }
+    .url-item a { color: var(--accent); text-decoration: none; flex: 1; }
+    .url-item a:hover { text-decoration: underline; }
+    .url-item .domain { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+
+    .empty-state { text-align: center; color: var(--muted); padding: 2rem; font-size: 0.9rem; }
+
+    .export-bar { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>🔗 Extract URLs</h1>
+    <p class="subtitle">Paste any text, HTML, or Markdown and extract all URLs. Supports filtering, deduplication, and export.</p>
+
+    <div class="input-section">
+      <h2>Input</h2>
+      <textarea id="input" placeholder="Paste text, HTML, or Markdown containing URLs…"></textarea>
+      <div class="toolbar">
+        <button class="primary" id="extractBtn">Extract URLs</button>
+        <button id="pasteBtn">📋 Paste</button>
+        <button id="clearBtn">✕ Clear</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <label><input type="checkbox" id="dedupe" checked> Deduplicate</label>
+      <label><input type="checkbox" id="sort"> Sort A→Z</label>
+      <label>Filter: <input type="text" id="filter" placeholder="e.g. github.com"></label>
+    </div>
+
+    <div class="results" id="results">
+      <div class="results-header">
+        <h2>Extracted URLs</h2>
+        <span class="count-badge" id="count">0</span>
+      </div>
+      <div class="url-list" id="urlList"></div>
+      <div class="export-bar">
+        <button class="success" id="copyAll">📋 Copy All</button>
+        <button id="copyMarkdown">📝 Copy as Markdown</button>
+        <button id="downloadCsv">⬇ Download CSV</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const inputEl = document.getElementById('input');
+const extractBtn = document.getElementById('extractBtn');
+const pasteBtn = document.getElementById('pasteBtn');
+const clearBtn = document.getElementById('clearBtn');
+const dedupeEl = document.getElementById('dedupe');
+const sortEl = document.getElementById('sort');
+const filterEl = document.getElementById('filter');
+const resultsEl = document.getElementById('results');
+const urlListEl = document.getElementById('urlList');
+const countEl = document.getElementById('count');
+const copyAllBtn = document.getElementById('copyAll');
+const copyMdBtn = document.getElementById('copyMarkdown');
+const downloadBtn = document.getElementById('downloadCsv');
+
+let allUrls = [];
+
+function extractUrls(text) {
+  const urlRegex = /https?:\/\/[^\s<>"')\]},;]+/gi;
+  const hrefRegex = /href\s*=\s*["']([^"']+)["']/gi;
+  const mdRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+
+  const urls = new Set();
+
+  // Raw URLs
+  let m;
+  while ((m = urlRegex.exec(text)) !== null) {
+    urls.add(m[0].replace(/[.,;:!?)]+$/, ''));
+  }
+  // href attributes
+  while ((m = hrefRegex.exec(text)) !== null) {
+    if (m[1].startsWith('http')) urls.add(m[1]);
+  }
+  // Markdown links
+  while ((m = mdRegex.exec(text)) !== null) {
+    if (m[2].startsWith('http')) urls.add(m[2]);
+  }
+
+  return Array.from(urls);
+}
+
+function getDomain(url) {
+  try { return new URL(url).hostname; } catch { return ''; }
+}
+
+function render() {
+  let urls = [...allUrls];
+  const f = filterEl.value.trim().toLowerCase();
+  if (f) urls = urls.filter(u => u.toLowerCase().includes(f));
+  if (dedupeEl.checked) urls = [...new Set(urls)];
+  if (sortEl.checked) urls.sort((a, b) => a.localeCompare(b));
+
+  countEl.textContent = urls.length;
+  urlListEl.innerHTML = '';
+
+  if (urls.length === 0) {
+    urlListEl.innerHTML = '<div class="empty-state">No URLs found</div>';
+    return;
+  }
+
+  urls.forEach(url => {
+    const div = document.createElement('div');
+    div.className = 'url-item';
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = url;
+    const dom = document.createElement('span');
+    dom.className = 'domain'; dom.textContent = getDomain(url);
+    div.appendChild(a); div.appendChild(dom);
+    urlListEl.appendChild(div);
+  });
+}
+
+function getFilteredUrls() {
+  let urls = [...allUrls];
+  const f = filterEl.value.trim().toLowerCase();
+  if (f) urls = urls.filter(u => u.toLowerCase().includes(f));
+  if (dedupeEl.checked) urls = [...new Set(urls)];
+  if (sortEl.checked) urls.sort((a, b) => a.localeCompare(b));
+  return urls;
+}
+
+extractBtn.addEventListener('click', () => {
+  allUrls = extractUrls(inputEl.value);
+  resultsEl.style.display = 'block';
+  render();
+});
+
+inputEl.addEventListener('input', () => {
+  if (allUrls.length > 0) { allUrls = extractUrls(inputEl.value); render(); }
+});
+
+dedupeEl.addEventListener('change', render);
+sortEl.addEventListener('change', render);
+filterEl.addEventListener('input', render);
+
+clearBtn.addEventListener('click', () => {
+  inputEl.value = ''; allUrls = []; resultsEl.style.display = 'none'; inputEl.focus();
+});
+pasteBtn.addEventListener('click', async () => {
+  try { inputEl.value = await navigator.clipboard.readText(); } catch {}
+});
+
+copyAllBtn.addEventListener('click', async () => {
+  const urls = getFilteredUrls();
+  await navigator.clipboard.writeText(urls.join('\n'));
+  copyAllBtn.textContent = '✓ Copied!';
+  setTimeout(() => copyAllBtn.textContent = '📋 Copy All', 1500);
+});
+
+copyMdBtn.addEventListener('click', async () => {
+  const urls = getFilteredUrls();
+  const md = urls.map(u => `- ${u}`).join('\n');
+  await navigator.clipboard.writeText(md);
+  copyMdBtn.textContent = '✓ Copied!';
+  setTimeout(() => copyMdBtn.textContent = '📝 Copy as Markdown', 1500);
+});
+
+downloadBtn.addEventListener('click', () => {
+  const urls = getFilteredUrls();
+  const csv = 'URL,Domain\n' + urls.map(u => `"${u}","${getDomain(u)}"`).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'urls.csv'; a.click();
+});
+</script>
+</body>
+</html>

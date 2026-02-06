@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image to SVG — Bitmap Tracer</title>
+  <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #e2e8f0; --muted: #94a3b8; --accent: #6366f1;
+      --accent-hover: #818cf8; --success: #22c55e; --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    .dropzone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 3rem 1.5rem; text-align: center; cursor: pointer;
+      color: var(--muted); transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 1.5rem;
+    }
+    .dropzone:hover, .dropzone.drag-over { border-color: var(--accent); background: rgba(99,102,241,0.06); }
+    .dropzone.processing { cursor: wait; opacity: 0.7; }
+    input[type=file] { display: none; }
+
+    .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+    select, .toolbar button {
+      padding: 0.4rem 0.75rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 0.8rem; cursor: pointer; font-weight: 500;
+    }
+    .toolbar button:hover { background: var(--border); }
+    .toolbar .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .toolbar .primary:hover { background: var(--accent-hover); }
+    .toolbar .success { background: var(--success); border-color: var(--success); color: #fff; }
+
+    .preview { display: none; }
+    .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .preview-pane {
+      background: var(--surface); border-radius: var(--radius); padding: 1rem;
+    }
+    .preview-pane h3 { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .preview-pane img, .preview-pane svg { max-width: 100%; height: auto; border-radius: 6px; }
+    .preview-pane .img-container { background: repeating-conic-gradient(#1a1a2e 0% 25%, #252540 0% 50%) 50% / 20px 20px; border-radius: 6px; padding: 0.5rem; display: flex; justify-content: center; }
+
+    .svg-code {
+      background: var(--surface); border-radius: var(--radius); padding: 1rem; margin-top: 1rem;
+    }
+    .svg-code h3 { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .svg-code textarea {
+      width: 100%; min-height: 150px; resize: vertical;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem;
+      font-family: 'SF Mono', Consolas, monospace; font-size: 0.8rem; line-height: 1.5;
+    }
+    .svg-code .stats { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
+
+    @media (max-width: 640px) { .preview-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../" class="back-link">← All Tools</a>
+    <h1>✏️ Image to SVG</h1>
+    <p class="subtitle">Trace bitmap images (PNG, JPEG, GIF) into scalable SVG vector graphics. Everything runs in your browser.</p>
+
+    <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp">
+    <div class="dropzone" id="dropzone">Drop an image here or click to browse</div>
+
+    <div class="toolbar">
+      <label style="font-size:0.8rem; color:var(--muted)">Preset:</label>
+      <select id="preset">
+        <option value="default" selected>Default</option>
+        <option value="posterized1">Posterized (simple)</option>
+        <option value="posterized2">Posterized (detailed)</option>
+        <option value="curvy">Curvy</option>
+        <option value="sharp">Sharp</option>
+        <option value="detailed">Detailed</option>
+        <option value="smoothed">Smoothed</option>
+        <option value="grayscale">Grayscale</option>
+        <option value="fixedpalette">Fixed palette</option>
+        <option value="randomsampling1">Random sampling</option>
+        <option value="artistic1">Artistic</option>
+      </select>
+      <label style="font-size:0.8rem; color:var(--muted)">Colors:</label>
+      <select id="colors">
+        <option value="0">Auto</option>
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="8" selected>8</option>
+        <option value="16">16</option>
+        <option value="32">32</option>
+        <option value="64">64</option>
+      </select>
+      <button class="primary" id="retraceBtn" style="display:none">↻ Retrace</button>
+    </div>
+
+    <div class="preview" id="preview">
+      <div class="preview-grid">
+        <div class="preview-pane">
+          <h3>Original</h3>
+          <div class="img-container"><img id="origImg"></div>
+        </div>
+        <div class="preview-pane">
+          <h3>SVG Result</h3>
+          <div class="img-container" id="svgContainer"></div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button class="success" id="downloadSvg">⬇ Download SVG</button>
+        <button id="copySvg">📋 Copy SVG Code</button>
+      </div>
+
+      <div class="svg-code">
+        <h3>SVG Code</h3>
+        <textarea id="svgCode" readonly></textarea>
+        <div class="stats" id="svgStats"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const origImg = document.getElementById('origImg');
+const svgContainer = document.getElementById('svgContainer');
+const svgCode = document.getElementById('svgCode');
+const svgStats = document.getElementById('svgStats');
+const presetEl = document.getElementById('preset');
+const colorsEl = document.getElementById('colors');
+const retraceBtn = document.getElementById('retraceBtn');
+const downloadBtn = document.getElementById('downloadSvg');
+const copyBtn = document.getElementById('copySvg');
+
+let currentImgUrl = null;
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadImage(fileInput.files[0]); });
+
+document.addEventListener('paste', e => {
+  const img = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
+  if (img) loadImage(img.getAsFile());
+});
+
+function loadImage(file) {
+  currentImgUrl = URL.createObjectURL(file);
+  origImg.src = currentImgUrl;
+  origImg.onload = () => trace();
+  retraceBtn.style.display = 'inline-block';
+}
+
+function trace() {
+  if (!currentImgUrl) return;
+  dropzone.textContent = 'Tracing…';
+  dropzone.classList.add('processing');
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = currentImgUrl;
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    const imgd = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+
+    const options = ImageTracer.checkoptions(presetEl.value);
+    const numColors = Number(colorsEl.value);
+    if (numColors > 0) options.numberofcolors = numColors;
+
+    const svgStr = ImageTracer.imagedataToSVG(imgd, options);
+
+    svgContainer.innerHTML = svgStr;
+    svgCode.value = svgStr;
+
+    const kb = (new Blob([svgStr]).size / 1024).toFixed(1);
+    const paths = (svgStr.match(/<path/g) || []).length;
+    svgStats.textContent = `${kb} KB · ${paths} paths`;
+
+    preview.style.display = 'block';
+    dropzone.textContent = 'Drop an image here or click to browse';
+    dropzone.classList.remove('processing');
+  };
+}
+
+retraceBtn.addEventListener('click', trace);
+presetEl.addEventListener('change', () => { if (currentImgUrl) trace(); });
+colorsEl.addEventListener('change', () => { if (currentImgUrl) trace(); });
+
+downloadBtn.addEventListener('click', () => {
+  if (!svgCode.value) return;
+  const blob = new Blob([svgCode.value], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'traced.svg';
+  a.click();
+});
+
+copyBtn.addEventListener('click', async () => {
+  if (!svgCode.value) return;
+  await navigator.clipboard.writeText(svgCode.value);
+  copyBtn.textContent = '✓ Copied!';
+  setTimeout(() => copyBtn.textContent = '📋 Copy SVG Code', 1500);
+});
+</script>
+</body>
+</html>
