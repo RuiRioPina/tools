@@ -104,6 +104,16 @@
     .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
     .back-link:hover { text-decoration: underline; }
 
+    .method-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 600;
+      display: none;
+    }
+    .method-badge.pdf-text { background: rgba(34,197,94,0.15); color: var(--success); display: inline-block; }
+    .method-badge.ocr { background: rgba(99,102,241,0.15); color: var(--accent); display: inline-block; }
+
     input[type="file"] { display: none; }
   </style>
 </head>
@@ -112,12 +122,13 @@
     <a href="../" class="back-link">← All Tools</a>
     <h1>🔍 Browser OCR</h1>
     <p class="subtitle">Extract text from images &amp; PDFs entirely in your browser using
-      <a href="https://tesseract.projectnaptha.com/" target="_blank">Tesseract.js</a> &amp;
-      <a href="https://mozilla.github.io/pdf.js/" target="_blank">PDF.js</a>. Nothing is uploaded.</p>
+      <a href="https://mozilla.github.io/pdf.js/" target="_blank">PDF.js</a> (embedded text) &amp;
+      <a href="https://tesseract.projectnaptha.com/" target="_blank">Tesseract.js</a> (scanned images). Nothing is uploaded.</p>
 
     <div class="controls">
       <label for="lang">Language:</label>
       <select id="lang"></select>
+      <span class="method-badge" id="methodBadge"></span>
     </div>
 
     <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp">
@@ -153,6 +164,7 @@ const fullDocDiv = document.getElementById('fullDoc');
 const fullTextArea = document.getElementById('fullText');
 const progressBar = document.getElementById('progressBar');
 const progressFill = document.getElementById('progressFill');
+const methodBadge = document.getElementById('methodBadge');
 
 // Populate language dropdown
 for (const [code, name] of Object.entries(LANG_NAMES)) {
@@ -185,37 +197,77 @@ async function processFile(file) {
   dropzone.textContent = 'Processing…';
   progressBar.style.display = 'block';
   progressFill.style.width = '0%';
+  methodBadge.className = 'method-badge';
+  methodBadge.textContent = '';
 
-  const worker = await Tesseract.createWorker(langSelect.value);
   const pages = [];
 
   if (file.type === 'application/pdf') {
     const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
     const total = pdf.numPages;
-    for (let i = 1; i <= total; i++) {
-      dropzone.textContent = `Processing page ${i} of ${total}…`;
-      progressFill.style.width = `${(i / total) * 100}%`;
-      const page = await pdf.getPage(i);
-      const vp = page.getViewport({ scale: 1 });
-      const canvas = document.createElement('canvas');
-      canvas.width = 1000;
-      canvas.height = (1000 / vp.width) * vp.height;
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport: page.getViewport({ scale: 1000 / vp.width }) }).promise;
-      const url = canvas.toDataURL('image/jpeg', 0.85);
-      const text = await ocrImage(worker, url);
-      pages.push({ url, text });
-      addResult(url, text);
+
+    // First, try PDF.js text extraction on page 1 to decide method
+    const firstPage = await pdf.getPage(1);
+    const firstTextContent = await firstPage.getTextContent();
+    const firstText = firstTextContent.items.map(item => item.str).join(' ').trim();
+    const useEmbeddedText = firstText.length > 50; // has meaningful embedded text
+
+    if (useEmbeddedText) {
+      methodBadge.textContent = '📄 PDF text extraction (perfect quality)';
+      methodBadge.classList.add('pdf-text');
+    } else {
+      methodBadge.textContent = '🔍 Tesseract OCR (scanned PDF)';
+      methodBadge.classList.add('ocr');
+    }
+
+    if (useEmbeddedText) {
+      // Extract embedded text directly — much higher quality
+      for (let i = 1; i <= total; i++) {
+        dropzone.textContent = `Extracting text from page ${i} of ${total}…`;
+        progressFill.style.width = `${(i / total) * 100}%`;
+        const page = await pdf.getPage(i);
+        const text = await extractPageText(page);
+        const vp = page.getViewport({ scale: 1 });
+        const canvas = document.createElement('canvas');
+        canvas.width = 1000;
+        canvas.height = (1000 / vp.width) * vp.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: page.getViewport({ scale: 1000 / vp.width }) }).promise;
+        const url = canvas.toDataURL('image/jpeg', 0.85);
+        pages.push({ url, text });
+        addResult(url, text);
+      }
+    } else {
+      // Scanned PDF — fall back to Tesseract OCR
+      const worker = await Tesseract.createWorker(langSelect.value);
+      for (let i = 1; i <= total; i++) {
+        dropzone.textContent = `OCR page ${i} of ${total}…`;
+        progressFill.style.width = `${(i / total) * 100}%`;
+        const page = await pdf.getPage(i);
+        const vp = page.getViewport({ scale: 1 });
+        const canvas = document.createElement('canvas');
+        canvas.width = 1000;
+        canvas.height = (1000 / vp.width) * vp.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: page.getViewport({ scale: 1000 / vp.width }) }).promise;
+        const url = canvas.toDataURL('image/jpeg', 0.85);
+        const text = await ocrImage(worker, url);
+        pages.push({ url, text });
+        addResult(url, text);
+      }
+      await worker.terminate();
     }
   } else {
+    // Image file — always use Tesseract OCR
+    methodBadge.textContent = '🔍 Tesseract OCR';
+    methodBadge.classList.add('ocr');
     progressFill.style.width = '50%';
+    const worker = await Tesseract.createWorker(langSelect.value);
     const url = URL.createObjectURL(file);
     const text = await ocrImage(worker, url);
     pages.push({ url, text });
     addResult(url, text);
     progressFill.style.width = '100%';
+    await worker.terminate();
   }
-
-  await worker.terminate();
 
   if (pages.length > 1) {
     fullTextArea.value = pages.map(p => p.text).join('\n\n');
@@ -225,6 +277,32 @@ async function processFile(file) {
   dropzone.textContent = 'Drop an image or PDF here, or click to browse';
   dropzone.classList.remove('processing');
   progressBar.style.display = 'none';
+}
+
+async function extractPageText(page) {
+  const content = await page.getTextContent();
+  // Group items by approximate Y position to reconstruct lines
+  const items = content.items.filter(item => item.str.trim().length > 0);
+  if (items.length === 0) return '';
+
+  const lines = [];
+  let currentLine = [];
+  let lastY = null;
+
+  for (const item of items) {
+    const y = Math.round(item.transform[5]);
+    if (lastY !== null && Math.abs(y - lastY) > 3) {
+      lines.push(currentLine.map(i => i.str).join(' '));
+      currentLine = [];
+    }
+    currentLine.push(item);
+    lastY = y;
+  }
+  if (currentLine.length > 0) {
+    lines.push(currentLine.map(i => i.str).join(' '));
+  }
+
+  return lines.join('\n');
 }
 
 async function ocrImage(worker, url) {
